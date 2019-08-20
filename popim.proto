@@ -1,0 +1,136 @@
+syntax = "proto3";
+
+package popim;
+
+service User {
+    rpc Register (RegisterReq) returns (RegisterRes) {}
+    rpc Login (LoginReq) returns (LoginRes) {}
+    rpc GetUserInfo(QueryByIdReq) returns (UserInfoRes) {}
+    rpc GetAvatar(QueryByIdReq) returns (stream StreamDownloadFileBlock) {}
+    rpc UpdateUserInfo(UpdateUserInfoReq) returns (OperationResult) {}
+    rpc UpdateAvatar(stream StreamUploadFileBlock) returns (stream OperationResult) {}
+}
+
+message OperationResult {
+    int32 code = 1;
+    string msg = 2;
+}
+
+//注册请求
+message RegisterReq {
+    string phoneNumber = 1;
+    string nickName = 2;
+}
+//注册响应
+message RegisterRes {
+    OperationResult result = 1;
+    uint64 popId = 2;
+}
+
+//登录请求 凭据id和手机号任选其一，id优先
+message LoginReq {
+    uint64 popId = 1;
+    string phoneNumber = 2;
+}
+//登录响应
+message LoginRes {
+    OperationResult result = 1;
+    AuthContext context = 2;
+}
+
+//认证上下文，一次登录后保持一段时间并作为后续请求的凭证
+message AuthContext {
+    string token = 1;
+    uint64 popId = 2;
+}
+
+//针对POP id的查询请求
+message QueryByIdReq {
+    AuthContext context = 1;
+    uint64 queryPopId = 2;
+}
+
+//更新用户信息请求
+message UpdateUserInfoReq {
+    AuthContext context = 1;
+    UserInfo data = 2;
+}
+
+//查询用户信息响应
+message UserInfoRes {
+    OperationResult result = 1;
+    UserInfo data = 2;
+}
+
+//用户信息
+message UserInfo {
+    uint64 popId = 1;
+    string nickName = 2;
+    uint64 musicId = 3;
+}
+
+//流式下载文件块
+message StreamDownloadFileBlock {
+    uint64 totalCount = 1;
+    bytes data = 2;
+}
+
+//流式上传文件块
+message StreamUploadFileBlock {
+    AuthContext context = 1;
+    uint64 totalCount = 2;
+    bytes data = 3;
+}
+
+service Friend {
+    rpc GetFriendList (QueryByIdReq) returns (stream FriendList) {}
+    rpc SearchFriend (SearchFriendReq) returns (stream FriendList) {}
+    rpc AddFriend (QueryByIdReq) returns (OperationResult) {}
+}
+
+message SearchFriendReq {
+    AuthContext context = 1;
+    string keyword = 2;
+}
+
+//好友列表，可以流式传输也可以一次性发送
+message FriendList {
+    uint64 totalCount = 1;
+    repeated UserInfo userInfo = 2;
+}
+
+service Msg {
+    rpc Pusher (AuthContext) returns (stream PushMsg) {}
+    rpc SendIMMsg (SendIMMsgReq) returns (OperationResult) {}
+    rpc GetIMMsgHistoryBetweenSingleUser (QueryByIdReq) returns (stream IMMsg) {}
+}
+
+//推送消息
+message PushMsg {
+    uint64 timestamp = 1;
+    enum PushMsgType {
+        IMMSG = 0;
+        NEWFRIENDMSG = 1;
+        REQFRIENDMSG = 2;
+    }
+    PushMsgType type = 2;
+    IMMsgs imMsgData = 3;
+    UserInfo friendMsgData = 4;
+}
+
+message IMMsg {
+    uint64 timestamp = 1;
+    uint64 fromId = 2;
+    uint64 toId = 3;
+    string content = 4;
+}
+
+message SendIMMsgReq {
+    AuthContext context = 1;
+    IMMsg imMsg = 2;
+}
+
+message IMMsgs {
+    uint64 totalCount = 1;
+    repeated IMMsg imMsg = 2;
+}
